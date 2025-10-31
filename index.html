@@ -75,7 +75,11 @@
     <ul id="convertedFiles"></ul>
 
     <script>
-    window.onload = function() {
+    Flac.onready = function() {
+        initializeApp();
+    }
+
+    function initializeApp() {
         const fileInput = document.getElementById('fileInput');
         const convertButton = document.getElementById('convertButton');
         const convertedFilesList = document.getElementById('convertedFiles');
