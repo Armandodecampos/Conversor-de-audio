@@ -75,8 +75,10 @@
     <ul id="convertedFiles"></ul>
 
     <script>
-    Flac.onready = function() {
+    if (Flac.isReady()) {
         initializeApp();
+    } else {
+        Flac.onready = initializeApp;
     }
 
     function initializeApp() {
@@ -92,6 +94,7 @@
             }
 
             convertedFilesList.innerHTML = ''; // Clear previous results
+            document.getElementById('progressContainer').innerHTML = ''; // Clear progress bars
 
             for (const file of files) {
                 convertFile(file);
@@ -131,7 +134,7 @@
                 let channels = 1;
                 let sampleRate = 44100; // Default sample rate
 
-                libflac.decode(flacData, (data, metadata) => {
+                Flac.decode(flacData, (data, metadata) => {
                     if (metadata.channels) {
                         channels = metadata.channels;
                     }
