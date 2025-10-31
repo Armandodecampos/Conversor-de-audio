@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLAC to MP3 Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/libflacjs@1.4.1/dist/libflac.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2em;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin-bottom: 1em;
+        }
+
+        button {
+            padding: 0.5em 1em;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 0.5em;
+        }
+
+        a {
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>FLAC to MP3 Converter</h1>
+    <p>Select your FLAC files and click "Convert" to convert them to MP3.</p>
+    <input type="file" id="fileInput" multiple accept=".flac">
+    <button id="convertButton">Convert</button>
+    <h2>Converted Files:</h2>
+    <ul id="convertedFiles"></ul>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const convertButton = document.getElementById('convertButton');
+        const convertedFilesList = document.getElementById('convertedFiles');
+
+        convertButton.addEventListener('click', () => {
+            const files = fileInput.files;
+            if (files.length === 0) {
+                alert('Please select one or more FLAC files.');
+                return;
+            }
+
+            convertedFilesList.innerHTML = ''; // Clear previous results
+
+            for (const file of files) {
+                convertFile(file);
+            }
+        });
+
+        function convertFile(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const flacData = new Uint8Array(event.target.result);
+
+                let pcmData;
+                let channels = 1;
+                libflac.decode(flacData, (data, metadata) => {
+                    if (metadata.channels) {
+                        channels = metadata.channels;
+                    }
+                    pcmData = data;
+                });
+
+                if (!pcmData) {
+                    alert('Failed to decode FLAC file: ' + file.name);
+                    return;
+                }
+
+                const mp3encoder = new lamejs.Mp3Encoder(channels, pcmData.sampleRate, 128);
+                const mp3Data = [];
+
+                const samples = pcmData.data;
+                const sampleBlockSize = 1152;
+
+                if (channels === 1) {
+                    for (let i = 0; i < samples.length; i += sampleBlockSize) {
+                        const sampleChunk = samples.subarray(i, i + sampleBlockSize);
+                        const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                        if (mp3buf.length > 0) {
+                            mp3Data.push(new Int8Array(mp3buf));
+                        }
+                    }
+                } else {
+                    const left = new Int16Array(samples.length / 2);
+                    const right = new Int16Array(samples.length / 2);
+                    for (let i = 0; i < samples.length / 2; i++) {
+                        left[i] = samples[i * 2];
+                        right[i] = samples[i * 2 + 1];
+                    }
+
+                    for (let i = 0; i < left.length; i += sampleBlockSize) {
+                        const leftChunk = left.subarray(i, i + sampleBlockSize);
+                        const rightChunk = right.subarray(i, i + sampleBlockSize);
+                        const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                        if (mp3buf.length > 0) {
+                            mp3Data.push(new Int8Array(mp3buf));
+                        }
+                    }
+                }
+
+
+                const mp3buf = mp3encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(new Int8Array(mp3buf));
+                }
+
+                const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+                const url = URL.createObjectURL(blob);
+
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name.replace(/\.flac$/, '.mp3');
+                a.textContent = a.download;
+                li.appendChild(a);
+                convertedFilesList.appendChild(li);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
