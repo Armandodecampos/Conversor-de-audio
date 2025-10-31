@@ -75,12 +75,13 @@
     <ul id="convertedFiles"></ul>
 
     <script>
-    const checkReady = setInterval(() => {
+    document.addEventListener('DOMContentLoaded', function() {
         if (Flac.isReady()) {
-            clearInterval(checkReady);
             initializeApp();
+        } else {
+            Flac.onready = initializeApp;
         }
-    }, 100);
+    });
 
     function initializeApp() {
         const fileInput = document.getElementById('fileInput');
@@ -150,11 +151,10 @@
 
                     const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
                     const mp3Data = [];
-
-                    const samples = data;
                     const sampleBlockSize = 1152;
 
                     if (channels === 1) {
+                        const samples = data[0];
                         for (let i = 0; i < samples.length; i += sampleBlockSize) {
                             const sampleChunk = samples.subarray(i, i + sampleBlockSize);
                             const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
@@ -163,13 +163,8 @@
                             }
                         }
                     } else {
-                        const left = new Int16Array(samples.length / 2);
-                        const right = new Int16Array(samples.length / 2);
-                        for (let i = 0; i < samples.length / 2; i++) {
-                            left[i] = samples[i * 2];
-                            right[i] = samples[i * 2 + 1];
-                        }
-
+                        const left = data[0];
+                        const right = data[1];
                         for (let i = 0; i < left.length; i += sampleBlockSize) {
                             const leftChunk = left.subarray(i, i + sampleBlockSize);
                             const rightChunk = right.subarray(i, i + sampleBlockSize);
