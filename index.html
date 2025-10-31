@@ -47,6 +47,22 @@
         a {
             color: #007bff;
         }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            margin-bottom: 0.5em;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -54,10 +70,12 @@
     <p>Select your FLAC files and click "Convert" to convert them to MP3.</p>
     <input type="file" id="fileInput" multiple accept=".flac">
     <button id="convertButton">Convert</button>
+    <div id="progressContainer"></div>
     <h2>Converted Files:</h2>
     <ul id="convertedFiles"></ul>
 
     <script>
+    window.onload = function() {
         const fileInput = document.getElementById('fileInput');
         const convertButton = document.getElementById('convertButton');
         const convertedFilesList = document.getElementById('convertedFiles');
@@ -77,15 +95,44 @@
         });
 
         function convertFile(file) {
+            const progressContainer = document.getElementById('progressContainer');
+
+            const progressBarContainer = document.createElement('div');
+            progressBarContainer.className = 'progress-bar-container';
+
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            progressBar.textContent = '0%';
+            progressBarContainer.appendChild(progressBar);
+
+            progressContainer.appendChild(progressBarContainer);
+
             const reader = new FileReader();
+
+            reader.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentLoaded = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percentLoaded + '%';
+                    progressBar.textContent = percentLoaded + '%';
+                }
+            };
+
             reader.onload = (event) => {
+                progressBar.textContent = 'Processing...';
+                progressBar.style.width = '100%';
+
                 const flacData = new Uint8Array(event.target.result);
 
                 let pcmData;
                 let channels = 1;
+                let sampleRate = 44100; // Default sample rate
+
                 libflac.decode(flacData, (data, metadata) => {
                     if (metadata.channels) {
                         channels = metadata.channels;
+                    }
+                    if (metadata.sampleRate) {
+                        sampleRate = metadata.sampleRate;
                     }
                     pcmData = data;
                 });
@@ -95,7 +142,7 @@
                     return;
                 }
 
-                const mp3encoder = new lamejs.Mp3Encoder(channels, pcmData.sampleRate, 128);
+                const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
                 const mp3Data = [];
 
                 const samples = pcmData.data;
@@ -146,6 +193,7 @@
             };
             reader.readAsArrayBuffer(file);
         }
+    }
     </script>
 </body>
 </html>
